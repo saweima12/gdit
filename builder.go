@@ -8,6 +8,8 @@ const (
 
 type Builder[T any] interface {
 	WithName(name string) Builder[T]
+	Build() provider[T]
+	Attach(c Container)
 }
 
 type builder[T any] struct {

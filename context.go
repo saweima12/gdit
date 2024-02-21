@@ -13,3 +13,7 @@ func GetContext(parent context.Context, c Container) *Context {
 		Context:   parent,
 	}
 }
+
+func (ctx *Context) getProvider(key string) {
+
+}
