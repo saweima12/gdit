@@ -14,3 +14,7 @@ func getProviderKey[T any](name string) (key string, named bool) {
 func getType[T any]() string {
 	return reflect.TypeOf((*T)(nil)).Elem().String()
 }
+
+func empty[T any]() (t T) {
+	return
+}

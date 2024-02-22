@@ -14,6 +14,12 @@ func GetContext(parent context.Context, c Container) *Context {
 	}
 }
 
-func (ctx *Context) getProvider(key string) {
+func (ctx *Context) getProvider(key string, isNamed bool) (any, bool) {
+	return ctx.container.getProvider(key, isNamed)
+}
 
+func (ctx *Context) OnStart(f HookFunc) {
+}
+
+func (ctx *Context) OnStop(f HookFunc) {
 }

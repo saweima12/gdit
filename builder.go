@@ -1,22 +1,21 @@
 package gdit
 
 const (
-	eager = iota
-	lazy
-	transient
+	lazy = iota
+	factory
+	value
 )
 
 type Builder[T any] interface {
 	WithName(name string) Builder[T]
-	Build() provider[T]
 	Attach(c Container)
 }
 
 type builder[T any] struct {
-	bType    uint8
-	instance T
-	factory  InitFunc[T]
-	name     string
+	buildType uint8
+	name      string
+	instance  T
+	factory   CtorFunc[T]
 }
 
 func (b *builder[T]) WithName(name string) Builder[T] {
@@ -24,27 +23,28 @@ func (b *builder[T]) WithName(name string) Builder[T] {
 	return b
 }
 
-func (b *builder[T]) Build() provider[T] {
-	return b.Build()
-}
-
 func (b *builder[T]) Attach(c Container) {
-
+	p := b.getProvider()
+	c.addProvider(p.Key(), p, p.IsNamed())
 }
 
 func (b *builder[T]) getProvider() provider[T] {
-	switch b.bType {
-	case eager:
-		return &eagerProvider[T]{
-			instance: b.instance,
+	key, named := getProviderKey[T](b.name)
+	switch b.buildType {
+	case value:
+		return &valueProvider[T]{
+			instance:     b.instance,
+			baseProvider: baseProvider{named: named, key: key},
 		}
 	case lazy:
 		return &lazyProvider[T]{
-			factory: b.factory,
+			factory:      b.factory,
+			baseProvider: baseProvider{named: named, key: key},
 		}
-	case transient:
+	case factory:
 		return &factoryProvider[T]{
-			factory: b.factory,
+			factory:      b.factory,
+			baseProvider: baseProvider{named: named, key: key},
 		}
 	}
 	return nil

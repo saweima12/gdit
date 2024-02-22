@@ -3,24 +3,41 @@ package gdit
 import "sync"
 
 type provider[T any] interface {
-	Get(ctx *Context) (T, error)
+	Get(ctx Context) (T, error)
+	IsNamed() bool
+	Key() string
 }
 
-type eagerProvider[T any] struct {
+type baseProvider struct {
+	key   string
+	named bool
+}
+
+func (p *baseProvider) IsNamed() bool {
+	return p.named
+}
+
+func (p *baseProvider) Key() string {
+	return p.key
+}
+
+type valueProvider[T any] struct {
+	baseProvider
 	instance T
 }
 
-func (p *eagerProvider[T]) Get(ctx *Context) (T, error) {
+func (p *valueProvider[T]) Get(ctx Context) (T, error) {
 	return p.instance, nil
 }
 
 type lazyProvider[T any] struct {
+	baseProvider
 	instance T
-	factory  InitFunc[T]
+	factory  CtorFunc[T]
 	once     sync.Once
 }
 
-func (p *lazyProvider[T]) Get(ctx *Context) (T, error) {
+func (p *lazyProvider[T]) Get(ctx Context) (T, error) {
 	var err error
 	p.once.Do(func() {
 		instance, ferr := p.factory(ctx)
@@ -33,11 +50,12 @@ func (p *lazyProvider[T]) Get(ctx *Context) (T, error) {
 }
 
 type factoryProvider[T any] struct {
-	factory InitFunc[T]
+	baseProvider
+	factory CtorFunc[T]
 	scoped  uint
 }
 
-func (p *factoryProvider[T]) Get(ctx *Context) (T, error) {
+func (p *factoryProvider[T]) Get(ctx Context) (T, error) {
 	instance, err := p.factory(ctx)
 	if err != nil {
 		var zero T
