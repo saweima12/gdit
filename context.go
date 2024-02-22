@@ -1,12 +1,10 @@
 package gdit
 
-import "context"
-
 type Context struct {
 	container Container
 }
 
-func GetContext(parent context.Context, c Container) *Context {
+func GetContext(c Container) *Context {
 	return &Context{
 		container: c,
 	}

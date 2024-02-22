@@ -5,7 +5,9 @@ import (
 )
 
 func New() *App {
-	return &App{}
+	return &App{
+		Scope: Scope{logger: &standardLogger{}},
+	}
 }
 
 func Inject[T any](ctx *Context) (T, error) {

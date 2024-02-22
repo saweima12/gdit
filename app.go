@@ -1,48 +1,106 @@
 package gdit
 
 import (
-	"context"
+	"errors"
+	"sync"
 )
 
 type App struct {
 	Container
 	Scope
 	scopes []*Scope
+	stopCh chan struct{}
+	once   sync.Once
 }
 
 func (app *App) Run() error {
-	return app.RunWithContext(context.Background())
+	ctx := GetContext(app)
+	// Initialize all invoke funtion.
+	if err := app.init(ctx); err != nil {
+		return err
+	}
+
+	if err := app.start(ctx); err != nil {
+		return err
+	}
+
+	<-app.stopCh
+
+	app.stop(ctx)
+
+	// When all service shutdown, close the stopCh
+	close(app.stopCh)
+	return nil
 }
 
-func (app *App) RunWithContext(inputCtx context.Context) error {
-	ctx := GetContext(inputCtx, app)
+func (app *App) Stop() {
+	app.once.Do(func() {
+		app.stopCh <- struct{}{}
+	})
+}
 
-	// Execute all invoke hook.
+func (app *App) SetLogger(l Logger) *App {
+	app.logger = l
+	return app
+}
 
-	// initialize all scope.
+func (app *App) init(ctx *Context) error {
+	for i := range app.initFuncs {
+		if err := app.initFuncs[i](ctx); err != nil {
+			return err
+		}
+	}
 
-	// Execute all start hook.
+	for i := range app.scopes {
+		if err := app.scopes[i].init(ctx); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
-func (ap *App) init(ctx *Context) error {
-	for i := range ap.initFuncs {
-		return ap.initFuncs[i](ctx)
+func (ap *App) start(ctx *Context) error {
+	for i := range ap.startHooks {
+		if err := ap.startHooks[i](ctx); err != nil {
+			return err
+		}
+	}
+	for i := range ap.scopes {
+		if err := ap.scopes[i].start(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func (ap *App) stop(ctx *Context) error {
-	panic("not implemented") // TODO: Implement
-}
+	errOccurred := false
+	for i := len(ap.stopHooks) - 1; i >= 0; i-- {
+		if err := ap.stopHooks[i](ctx); err != nil {
+			ap.logger.Error("Execute stop hook failed, err:", err)
+			errOccurred = true
+		}
+	}
 
-func (ap *App) start(ctx *Context) error {
-	panic("not implemented") // TODO: Implement
+	for i := range ap.scopes {
+		if err := ap.scopes[i].stop(ctx); err != nil {
+			ap.logger.Error("Execute scope stop hook failed, err:", err)
+			errOccurred = true
+		}
+	}
+
+	if errOccurred {
+		return errors.New("errors occurred during stop process, see logs for details")
+	}
+
+	return nil
 }
 
 func (ap *App) addInvoke(f HookFunc) {
+	ap.mu.Lock()
 	ap.initFuncs = append(ap.initFuncs, f)
+	ap.mu.Unlock()
 }
 
 func (ap *App) addProvider(k string, p any, isNamed bool) {
