@@ -15,7 +15,7 @@ type testConfig struct {
 // Define testRepository
 type testRepo struct{}
 
-func NewTestRepo(ctx gdit.Context) (*testRepo, error) {
+func NewTestRepo(ctx *gdit.Context) (*testRepo, error) {
 	fmt.Println("OnTestRepo create.")
 	return &testRepo{}, nil
 }
@@ -32,7 +32,7 @@ func (t *testService) Run() {
 
 }
 
-func NewTestServ(ctx gdit.Context) (TestService, error) {
+func NewTestServ(ctx *gdit.Context) (TestService, error) {
 	serv := &testService{}
 	fmt.Println("OnTestService Create")
 	serv.repo = gdit.MustInject[*testRepo](ctx)
@@ -63,7 +63,7 @@ func TestGdit(t *testing.T) {
 	fmt.Println(app)
 }
 
-func Runner(ctx gdit.Context) error {
+func Runner(ctx *gdit.Context) error {
 	cfg := gdit.MustInject[*testConfig](ctx)
 	fmt.Println(cfg)
 	return nil

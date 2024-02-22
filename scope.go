@@ -13,8 +13,6 @@ type Scope struct {
 }
 
 func (sc *Scope) addProvider(k string, p any, isNamed bool) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
 	if isNamed {
 		sc.namedMap.Store(k, p)
 	} else {
@@ -29,8 +27,6 @@ func (sc *Scope) addInvoke(f HookFunc) {
 }
 
 func (sc *Scope) getProvider(k string, isNamed bool) (val any, ok bool) {
-	sc.mu.RLock()
-	defer sc.mu.RUnlock()
 	if isNamed {
 		return sc.namedMap.Load(k)
 	} else {

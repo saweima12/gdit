@@ -8,16 +8,16 @@ func New() *App {
 	return &App{}
 }
 
-func Inject[T any](ctx Context) (T, error) {
+func Inject[T any](ctx *Context) (T, error) {
 	typeStr := getType[T]()
 	return injectInternal[T](ctx, typeStr, false)
 }
 
-func InjectNamed[T any](ctx Context, name string) (T, error) {
+func InjectNamed[T any](ctx *Context, name string) (T, error) {
 	return injectInternal[T](ctx, name, true)
 }
 
-func MustInject[T any](ctx Context) T {
+func MustInject[T any](ctx *Context) T {
 	typeStr := getType[T]()
 	item, err := injectInternal[T](ctx, typeStr, false)
 	if err != nil {
@@ -26,7 +26,7 @@ func MustInject[T any](ctx Context) T {
 	return item
 }
 
-func MustInjectNamed[T any](ctx Context, name string) T {
+func MustInjectNamed[T any](ctx *Context, name string) T {
 	item, err := injectInternal[T](ctx, name, true)
 	if err != nil {
 		panic(fmt.Sprintf("MustInejctNamed failed, err: %v", err))
@@ -35,7 +35,7 @@ func MustInjectNamed[T any](ctx Context, name string) T {
 }
 
 func Invoke[T any](c Container, f CtorFunc[T]) {
-	c.addInvoke(func(ctx Context) error {
+	c.addInvoke(func(ctx *Context) error {
 		_, err := f(ctx)
 		return err
 	})
@@ -66,7 +66,7 @@ func ProvideFactory[T CtorFunc[any]](f CtorFunc[T]) Builder[T] {
 	}
 }
 
-func injectInternal[T any](ctx Context, key string, isNamed bool) (T, error) {
+func injectInternal[T any](ctx *Context, key string, isNamed bool) (T, error) {
 	item, ok := ctx.getProvider(key, isNamed)
 	if !ok {
 		return empty[T](), fmt.Errorf("The key %s is not found.", key)

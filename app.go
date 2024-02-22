@@ -23,22 +23,21 @@ func (app *App) RunWithContext(inputCtx context.Context) error {
 
 	// Execute all start hook.
 
-	<-ctx.Done()
 	return nil
 }
 
-func (ap *App) init(ctx Context) error {
+func (ap *App) init(ctx *Context) error {
 	for i := range ap.initFuncs {
 		return ap.initFuncs[i](ctx)
 	}
 	return nil
 }
 
-func (ap *App) stop(ctx Context) error {
+func (ap *App) stop(ctx *Context) error {
 	panic("not implemented") // TODO: Implement
 }
 
-func (ap *App) start(ctx Context) error {
+func (ap *App) start(ctx *Context) error {
 	panic("not implemented") // TODO: Implement
 }
 
