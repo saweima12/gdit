@@ -12,11 +12,41 @@ type testConfig struct {
 	DomainUrl string
 }
 
-// Define testRepository
-type testRepo struct{}
+func NewTestConfig(ctx gdit.Context) (*testConfig, error) {
+	ctx.OnStart(func(ctx gdit.Context) error {
+		fmt.Println("On TestConfig Start")
+		return nil
+	})
 
-func NewTestRepo(ctx *gdit.Context) (*testRepo, error) {
+	ctx.OnStop(func(ctx gdit.Context) error {
+		fmt.Println("On TestConfig stop")
+		return nil
+	})
+
+	return &testConfig{
+		DomainUrl: "http://example.com",
+	}, nil
+}
+
+// Define testRepository
+type testRepo struct {
+	cfg *testConfig
+}
+
+func NewTestRepo(ctx gdit.Context) (*testRepo, error) {
 	fmt.Println("OnTestRepo create.")
+
+	ctx.OnStart(func(ctx gdit.Context) error {
+		fmt.Println("On TestRepo Start.")
+		return nil
+	})
+
+	ctx.OnStop(func(ctx gdit.Context) error {
+		fmt.Println("On TestRepo Stop.")
+		return nil
+	})
+
+	gdit.MustInject[*testConfig](ctx)
 	return &testRepo{}, nil
 }
 
@@ -32,10 +62,21 @@ func (t *testService) Run() {
 
 }
 
-func NewTestServ(ctx *gdit.Context) (TestService, error) {
+func NewTestServ(ctx gdit.Context) (TestService, error) {
 	serv := &testService{}
 	fmt.Println("OnTestService Create")
+
+	ctx.OnStart(func(ctx gdit.Context) error {
+		fmt.Println("On TestServ Start.")
+		return nil
+	})
+
+	ctx.OnStop(func(ctx gdit.Context) error {
+		fmt.Println("On TestServ Stop.")
+		return nil
+	})
 	serv.repo = gdit.MustInject[*testRepo](ctx)
+
 	return serv, nil
 }
 
@@ -47,24 +88,25 @@ func TestGdit(t *testing.T) {
 		DomainUrl: "http://example.com",
 	}).Attach(app)
 
+	gdit.Provide[*testConfig](NewTestConfig).Attach(app)
+
 	// Test provide
 	gdit.Provide[*testRepo](NewTestRepo).Attach(app)
 
 	// Test provide with name
+	helloScope := app.GetScope("Hello")
 	gdit.Provide[TestService](NewTestServ).
-		WithName("TestServ").
 		Attach(app)
 
 	// Invoke
-	gdit.Invoke(app, NewTestServ)
-	gdit.InvokeFunc(app, Runner)
 
-	app.Run()
-	fmt.Println(app)
+	app.Setup()
+	fmt.Println(app.Scope)
+	fmt.Println(helloScope)
+
 }
 
-func Runner(ctx *gdit.Context) error {
-	cfg := gdit.MustInject[*testConfig](ctx)
-	fmt.Println(cfg)
+func Runner(ctx gdit.Context) error {
+
 	return nil
 }

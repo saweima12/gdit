@@ -5,17 +5,39 @@ import (
 	"sync"
 )
 
+type LifeState uint8
+
+const (
+	Uninitialized LifeState = iota
+	Initialzing
+	Ready
+	ShuttingDown
+	Terminated
+)
+
 type App struct {
-	Container
-	Scope
-	scopes []*Scope
-	stopCh chan struct{}
-	once   sync.Once
+	*Scope
+	subScopes []*Scope
+	stopCh    chan struct{}
+	once      sync.Once
 }
 
-func (app *App) Run() error {
+func createApp() *App {
+	return &App{
+		Scope: &Scope{
+			state:  Uninitialized,
+			logger: &standardLogger{},
+		},
+	}
+}
+
+func (app *App) Setup() error {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	// Create context
 	ctx := GetContext(app)
-	// Initialize all invoke funtion.
+
+	app.changeState(Initialzing)
 	if err := app.init(ctx); err != nil {
 		return err
 	}
@@ -24,19 +46,16 @@ func (app *App) Run() error {
 		return err
 	}
 
-	<-app.stopCh
-
-	app.stop(ctx)
-
-	// When all service shutdown, close the stopCh
-	close(app.stopCh)
+	app.changeState(Ready)
 	return nil
 }
 
-func (app *App) Stop() {
-	app.once.Do(func() {
-		app.stopCh <- struct{}{}
-	})
+func (app *App) Teardown() error {
+
+	ctx := GetContext(app)
+	app.stop(ctx)
+
+	return nil
 }
 
 func (app *App) SetLogger(l Logger) *App {
@@ -44,15 +63,23 @@ func (app *App) SetLogger(l Logger) *App {
 	return app
 }
 
-func (app *App) init(ctx *Context) error {
-	for i := range app.initFuncs {
-		if err := app.initFuncs[i](ctx); err != nil {
+func (app *App) GetScope(scopeName string) Container {
+	return &Scope{
+		parent: app,
+		state:  app.state,
+		logger: app.logger,
+	}
+}
+
+func (app *App) init(ctx Context) error {
+	for i := range app.invokeFuncs {
+		if err := app.invokeFuncs[i](ctx); err != nil {
 			return err
 		}
 	}
 
-	for i := range app.scopes {
-		if err := app.scopes[i].init(ctx); err != nil {
+	for i := range app.subScopes {
+		if err := app.subScopes[i].init(ctx); err != nil {
 			return err
 		}
 	}
@@ -60,21 +87,21 @@ func (app *App) init(ctx *Context) error {
 	return nil
 }
 
-func (ap *App) start(ctx *Context) error {
+func (ap *App) start(ctx Context) error {
 	for i := range ap.startHooks {
 		if err := ap.startHooks[i](ctx); err != nil {
 			return err
 		}
 	}
-	for i := range ap.scopes {
-		if err := ap.scopes[i].start(ctx); err != nil {
+	for i := range ap.subScopes {
+		if err := ap.subScopes[i].start(ctx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (ap *App) stop(ctx *Context) error {
+func (ap *App) stop(ctx Context) error {
 	errOccurred := false
 	for i := len(ap.stopHooks) - 1; i >= 0; i-- {
 		if err := ap.stopHooks[i](ctx); err != nil {
@@ -83,8 +110,8 @@ func (ap *App) stop(ctx *Context) error {
 		}
 	}
 
-	for i := range ap.scopes {
-		if err := ap.scopes[i].stop(ctx); err != nil {
+	for i := range ap.subScopes {
+		if err := ap.subScopes[i].stop(ctx); err != nil {
 			ap.logger.Error("Execute scope stop hook failed, err:", err)
 			errOccurred = true
 		}
@@ -99,7 +126,7 @@ func (ap *App) stop(ctx *Context) error {
 
 func (ap *App) addInvoke(f HookFunc) {
 	ap.mu.Lock()
-	ap.initFuncs = append(ap.initFuncs, f)
+	ap.invokeFuncs = append(ap.invokeFuncs, f)
 	ap.mu.Unlock()
 }
 
@@ -117,4 +144,8 @@ func (ap *App) getProvider(k string, isNamed bool) (val any, ok bool) {
 	} else {
 		return ap.typeMap.Load(k)
 	}
+}
+
+func (ap *App) changeState(state LifeState) {
+	ap.state = state
 }
