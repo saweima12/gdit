@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/saweima12/gdit/ext"
+	"github.com/saweima12/gdit/internal/ext"
 )
 
 type LifeState uint8

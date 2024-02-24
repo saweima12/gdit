@@ -3,7 +3,7 @@ package gdit
 import (
 	"fmt"
 
-	"github.com/saweima12/gdit/utils"
+	"github.com/saweima12/gdit/internal/utils"
 )
 
 // New creates and returns a new instance of the application with a root container.

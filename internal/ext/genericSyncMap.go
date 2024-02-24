@@ -3,7 +3,7 @@ package ext
 import (
 	"sync"
 
-	"github.com/saweima12/gdit/utils"
+	"github.com/saweima12/gdit/internal/utils"
 )
 
 type GSyncMap[T any] struct {

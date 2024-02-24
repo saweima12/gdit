@@ -1,6 +1,6 @@
 package gdit
 
-import "github.com/saweima12/gdit/utils"
+import "github.com/saweima12/gdit/internal/utils"
 
 const (
 	lazy = iota
