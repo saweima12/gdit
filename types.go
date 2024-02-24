@@ -1,15 +1,10 @@
 package gdit
 
 type Container interface {
-	addInvoke(f HookFunc)
+	AddProvider(k string, p any, isNamed bool)
+	GetProvider(k string, isNamed bool) (any, bool)
 	addStartHook(f HookFunc)
 	addStopHook(f HookFunc)
-	addProvider(k string, p any, isNamed bool)
-	getProvider(k string, isNamed bool) (any, bool)
-	changeState(state LifeState)
-	init(ctx Context) error
-	start(ctx Context) error
-	stop(ctx Context) error
 }
 
 type CtorFunc[T any] func(ctx Context) (T, error)

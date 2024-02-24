@@ -1,35 +1,39 @@
 package gdit
 
+import "github.com/saweima12/gdit/utils"
+
 const (
 	lazy = iota
 	factory
 	value
 )
 
-type Builder[T any] interface {
-	WithName(name string) Builder[T]
+type ProviderBuilder[T any] interface {
+	// WithName assigns a unique name to the provider for named dependency resolution.
+	WithName(name string) ProviderBuilder[T]
+	// Attach adds the configured provider to the specified container.
 	Attach(c Container)
 }
 
-type builder[T any] struct {
+type providerBuilder[T any] struct {
 	buildType uint8
 	name      string
 	instance  T
 	factory   CtorFunc[T]
 }
 
-func (b *builder[T]) WithName(name string) Builder[T] {
+func (b *providerBuilder[T]) WithName(name string) ProviderBuilder[T] {
 	b.name = name
 	return b
 }
 
-func (b *builder[T]) Attach(c Container) {
+func (b *providerBuilder[T]) Attach(c Container) {
 	p := b.getProvider()
-	c.addProvider(p.Key(), p, p.IsNamed())
+	c.AddProvider(p.Key(), p, p.IsNamed())
 }
 
-func (b *builder[T]) getProvider() provider[T] {
-	key, named := getProviderKey[T](b.name)
+func (b *providerBuilder[T]) getProvider() provider[T] {
+	key, named := utils.GetProviderKey[T](b.name)
 	switch b.buildType {
 	case value:
 		return &valueProvider[T]{

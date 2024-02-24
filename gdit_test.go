@@ -80,33 +80,54 @@ func NewTestServ(ctx gdit.Context) (TestService, error) {
 	return serv, nil
 }
 
-func TestGdit(t *testing.T) {
-	app := gdit.New()
+func TestProvide(t *testing.T) {
+	app := getTestApp()
 
-	// Test provideValue.
 	gdit.ProvideValue[*testConfig](&testConfig{
 		DomainUrl: "http://example.com",
 	}).Attach(app)
 
-	gdit.Provide[*testConfig](NewTestConfig).Attach(app)
+	gdit.InvokeFunc(app, func(ctx gdit.Context) error {
+		// Test inject provide value
+		cfg := gdit.MustInject[*testConfig](ctx)
+		if cfg.DomainUrl != "http://example.com" {
+			t.Fail()
+		}
 
-	// Test provide
-	gdit.Provide[*testRepo](NewTestRepo).Attach(app)
+		// Test inject named lazy provider.
+		serv := gdit.MustInjectNamed[TestService](ctx, "TestService")
+		serv2 := gdit.MustInjectNamed[TestService](ctx, "TestService")
+		t.Run("The serv and serv2 should be equals", func(ct *testing.T) {
+			if serv != serv2 {
+				ct.Fail()
+			}
+		})
 
-	// Test provide with name
-	helloScope := app.GetScope("Hello")
-	gdit.Provide[TestService](NewTestServ).
-		Attach(app)
+		// test factory provider.
+		repo1 := gdit.MustInject[*testRepo](ctx)
+		repo2 := gdit.MustInject[*testRepo](ctx)
+		t.Run("The repositories repo1 and repo2 should be distinct.", func(ct *testing.T) {
+			if &repo1 == &repo2 {
+				ct.Fail()
+			}
+		})
 
-	// Invoke
-
-	app.Setup()
-	fmt.Println(app.Scope)
-	fmt.Println(helloScope)
+		app.Startup()
+		app.Teardown()
+		return nil
+	})
 
 }
 
-func Runner(ctx gdit.Context) error {
+func getTestApp() gdit.App {
+	app := gdit.New()
 
-	return nil
+	gdit.ProvideFactory[*testRepo](NewTestRepo).
+		Attach(app)
+
+	gdit.Provide[TestService](NewTestServ).
+		WithName("TestService").
+		Attach(app)
+
+	return app
 }

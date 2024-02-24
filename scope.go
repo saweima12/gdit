@@ -1,73 +1,38 @@
 package gdit
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
-type Scope struct {
-	parent      Container
-	state       LifeState
-	logger      Logger
-	mu          sync.RWMutex
-	typeMap     sync.Map
-	namedMap    sync.Map
-	invokeFuncs []HookFunc
-	startHooks  []HookFunc
-	stopHooks   []HookFunc
+type scope struct {
+	parent     Container
+	name       string
+	state      LifeState
+	logger     *loggerWrapper
+	mu         sync.RWMutex
+	typeMap    sync.Map
+	namedMap   sync.Map
+	startHooks []HookFunc
+	stopHooks  []HookFunc
 }
 
-func (sc *Scope) init(ctx Context) error {
-	for i := range sc.invokeFuncs {
-		if err := sc.invokeFuncs[i](ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (sc *Scope) start(ctx Context) error {
-	for i := range sc.startHooks {
-		if err := sc.startHooks[i](ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (sc *Scope) stop(ctx Context) error {
-	for i := len(sc.stopHooks) - 1; i >= 0; i-- {
-		if err := sc.stopHooks[i](ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (sc *Scope) addInvoke(f HookFunc) {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	sc.invokeFuncs = append(sc.invokeFuncs, f)
-}
-
-func (sc *Scope) addStartHook(f HookFunc) {
-	sc.startHooks = append(sc.startHooks, f)
-}
-
-func (sc *Scope) addStopHook(f HookFunc) {
-	sc.stopHooks = append(sc.stopHooks, f)
-}
-
-func (sc *Scope) changeState(state LifeState) {
-	sc.state = state
-}
-
-func (sc *Scope) addProvider(k string, p any, isNamed bool) {
+func (sc *scope) AddProvider(k string, p any, isNamed bool) {
 	if isNamed {
-		sc.namedMap.Store(k, p)
+		sc.storeProvider(k, p, isNamed, &sc.namedMap)
 	} else {
-		sc.typeMap.Store(k, p)
+		sc.storeProvider(k, p, isNamed, &sc.typeMap)
 	}
 }
 
-func (sc *Scope) getProvider(k string, isNamed bool) (val any, ok bool) {
+func (sc *scope) storeProvider(k string, p any, isNamed bool, providerMap *sync.Map) {
+	if _, loaded := providerMap.Swap(k, p); loaded {
+		msg := fmt.Sprintf("[%s] -> The provider [%s] was overwritten.", sc.name, k)
+		sc.logger.Warn(msg)
+	}
+}
+
+func (sc *scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
 	if isNamed {
 		if val, ok := sc.namedMap.Load(k); ok {
 			return val, ok
@@ -77,5 +42,49 @@ func (sc *Scope) getProvider(k string, isNamed bool) (val any, ok bool) {
 			return val, ok
 		}
 	}
-	return sc.parent.getProvider(k, isNamed)
+	return sc.parent.GetProvider(k, isNamed)
+}
+
+func (sc *scope) start(ctx Context) error {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.changeState(STATE_INITIALIZING)
+	for i := range sc.startHooks {
+		if err := sc.startHooks[i](ctx); err != nil {
+			return err
+		}
+	}
+	sc.changeState(STATE_READY)
+	return nil
+}
+
+func (sc *scope) stop(ctx Context) error {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.changeState(STATE_SHUTTING_DOWN)
+	for i := len(sc.stopHooks) - 1; i >= 0; i-- {
+		if err := sc.stopHooks[i](ctx); err != nil {
+			return err
+		}
+	}
+	sc.changeState(STATE_TERMINATED)
+	return nil
+}
+
+func (sc *scope) addStartHook(f HookFunc) {
+	sc.mu.Lock()
+	sc.startHooks = append(sc.startHooks, f)
+	sc.mu.Unlock()
+}
+
+func (sc *scope) addStopHook(f HookFunc) {
+	sc.mu.Lock()
+	sc.stopHooks = append(sc.stopHooks, f)
+	sc.mu.Unlock()
+}
+
+func (sc *scope) changeState(state LifeState) {
+	sc.state = state
 }
