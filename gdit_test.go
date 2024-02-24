@@ -94,7 +94,7 @@ func TestProvide(t *testing.T) {
 			t.Fail()
 		}
 
-		// Test inject named lazy provider.
+		// Test inject named lazy provider with interface.
 		serv := gdit.MustInjectNamed[TestService](ctx, "TestService")
 		serv2 := gdit.MustInjectNamed[TestService](ctx, "TestService")
 		t.Run("The serv and serv2 should be equals", func(ct *testing.T) {
@@ -116,7 +116,9 @@ func TestProvide(t *testing.T) {
 		app.Teardown()
 		return nil
 	})
+}
 
+func TestOverwriteScope(t *testing.T) {
 }
 
 func getTestApp() gdit.App {

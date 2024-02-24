@@ -113,9 +113,9 @@ func (ap *app) GetScope(scopeName string) Container {
 		state:  ap.state,
 		logger: ap.logger,
 	}
-
-	ap.subScopes.Store(scopeName, s)
-	ap.mu.Lock()
+	if _, loaded := ap.subScopes.Swap(scopeName, s); loaded {
+		ap.logger.Warn("The scope [%s] is overwritten", scopeName)
+	}
 	return s
 }
 
