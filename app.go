@@ -119,7 +119,7 @@ func (ap *app) GetScope(scopeName string) Container {
 	return s
 }
 
-func (ap *app) start(ctx Context) error {
+func (ap *app) start(ctx *context) error {
 	for i := range ap.startHooks {
 		if err := ap.startHooks[i](ctx); err != nil {
 			return err

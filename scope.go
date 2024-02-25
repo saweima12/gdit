@@ -13,8 +13,12 @@ type Scope struct {
 	mu         sync.RWMutex
 	typeMap    sync.Map
 	namedMap   sync.Map
-	startHooks []HookFunc
-	stopHooks  []HookFunc
+	startHooks []StartFunc
+	stopHooks  []StopFunc
+}
+
+func (sc *Scope) getLogger() Logger {
+	return sc.logger
 }
 
 func (sc *Scope) AddProvider(k string, p any, isNamed bool) {
@@ -54,7 +58,7 @@ func (sc *Scope) CurState() LifeState {
 	return sc.state
 }
 
-func (sc *Scope) start(ctx Context) error {
+func (sc *Scope) start(ctx StartCtx) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
@@ -82,13 +86,13 @@ func (sc *Scope) stop(ctx Context) error {
 	return nil
 }
 
-func (sc *Scope) addStartHook(f HookFunc) {
+func (sc *Scope) addStartHook(f StartFunc) {
 	sc.mu.Lock()
 	sc.startHooks = append(sc.startHooks, f)
 	sc.mu.Unlock()
 }
 
-func (sc *Scope) addStopHook(f HookFunc) {
+func (sc *Scope) addStopHook(f StopFunc) {
 	sc.mu.Lock()
 	sc.stopHooks = append(sc.stopHooks, f)
 	sc.mu.Unlock()

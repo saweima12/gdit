@@ -25,43 +25,59 @@ var ctxPool = contextPool{
 	},
 }
 
-func getContext(c Container) Context {
+func getContext(c Container) *context {
 	ctx := ctxPool.Get()
 	ctx.container = c
 	return ctx
 }
 
-type LifecycleAdder interface {
+type LifecycleStarter interface {
 	// OnStart registers a hook function to be executed when the application starts.
 	// [f] -> The hook function to execute during the application's startup process.
 	// This hook allows for custom initialization logic to be executed as part of the startup sequence.
-	OnStart(f HookFunc)
+	OnStart(f StartFunc)
+}
 
+type LifecycleStoper interface {
 	// OnStop registers a hook function to be executed when the application stops.
 	// [f] -> The hook function to execute during the application's shutdown process.
 	// This hook allows for custom cleanup logic to be executed as part of the shutdown sequence.
-	OnStop(f HookFunc)
+	OnStop(f StopFunc)
+}
+
+type InvokeCtx interface {
+	Context
+	LifecycleStarter
+	LifecycleStoper
+}
+
+type StartCtx interface {
+	Context
+	LifecycleStoper
+}
+
+type StopCtx interface {
+	Context
 }
 
 type Context interface {
-	LifecycleAdder
+	clone() InvokeCtx
 	getProvider(key string, isNamed bool) (any, bool)
-	clone() Context
-	recycle()
 	tryAddOrRunHook() error
+	recycle()
 }
 
 type context struct {
 	container Container
-	startHook HookFunc
-	stopHook  HookFunc
+	startHook StartFunc
+	stopHook  StopFunc
 }
 
-func (ctx *context) OnStart(f HookFunc) {
+func (ctx *context) OnStart(f StartFunc) {
 	ctx.startHook = f
 }
 
-func (ctx *context) OnStop(f HookFunc) {
+func (ctx *context) OnStop(f StopFunc) {
 	ctx.stopHook = f
 }
 
@@ -69,7 +85,7 @@ func (ctx *context) getProvider(key string, isNamed bool) (any, bool) {
 	return ctx.container.GetProvider(key, isNamed)
 }
 
-func (ctx *context) clone() Context {
+func (ctx *context) clone() InvokeCtx {
 	nCtx := ctxPool.Get()
 	nCtx.container = ctx.container
 	return nCtx

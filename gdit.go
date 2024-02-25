@@ -66,7 +66,7 @@ func Invoke[T any](c Container, f func(Context) (T, error)) (T, error) {
 // [c] -> Container in which the function is executed.
 // [f] -> Function that takes a Context and performs initialization, returning an error if it fails.
 // Returns an error if the initialization task fails.
-func InvokeFunc(c Container, f func(Context) error) error {
+func InvokeFunc(c Container, f func(InvokeCtx) error) error {
 	ctx := getContext(c)
 	return f(ctx)
 }
@@ -77,8 +77,8 @@ func InvokeFunc(c Container, f func(Context) error) error {
 //	This constructor is called lazily, i.e., the service is instantiated when first requested.
 //
 // Returns a ProviderBuilder to further configure the provided service.
-func Provide[T any](f func(Context) (T, error)) ProviderBuilder[T] {
-	pb := newProviderBuilder[T](lazy)
+func Provide[T any](f func(InvokeCtx) (T, error)) ProviderBuilder[T] {
+	pb := newProviderBuilder[T](provider_lazy)
 	pb.factory = f
 	return pb
 }
@@ -89,8 +89,8 @@ func Provide[T any](f func(Context) (T, error)) ProviderBuilder[T] {
 //	Unlike lazy-loaded services, factory-based services can be instantiated multiple times.
 //
 // Returns a ProviderBuilder to further configure the provided service.
-func ProvideFactory[T any](f func(Context) (T, error)) ProviderBuilder[T] {
-	pb := newProviderBuilder[T](factory)
+func ProvideFactory[T any](f func(InvokeCtx) (T, error)) ProviderBuilder[T] {
+	pb := newProviderBuilder[T](provider_factory)
 	pb.factory = f
 	return pb
 }
@@ -99,7 +99,7 @@ func ProvideFactory[T any](f func(Context) (T, error)) ProviderBuilder[T] {
 // [item] -> The pre-instantiated service instance of type T to be registered.
 // Returns a ProviderBuilder to further configure the provided service.
 func ProvideValue[T any](item T) ProviderBuilder[T] {
-	pb := newProviderBuilder[T](value)
+	pb := newProviderBuilder[T](provider_value)
 	pb.instance = item
 	return pb
 }

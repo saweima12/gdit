@@ -12,17 +12,7 @@ type testConfig struct {
 	DomainUrl string
 }
 
-func NewTestConfig(ctx gdit.Context) (*testConfig, error) {
-	ctx.OnStart(func(ctx gdit.Context) error {
-		fmt.Println("On TestConfig Start")
-		return nil
-	})
-
-	ctx.OnStop(func(ctx gdit.Context) error {
-		fmt.Println("On TestConfig stop")
-		return nil
-	})
-
+func NewTestConfig(ctx gdit.InvokeCtx) (*testConfig, error) {
 	return &testConfig{
 		DomainUrl: "http://example.com",
 	}, nil
@@ -33,18 +23,8 @@ type testRepo struct {
 	cfg *testConfig
 }
 
-func NewTestRepo(ctx gdit.Context) (*testRepo, error) {
+func NewTestRepo(ctx gdit.InvokeCtx) (*testRepo, error) {
 	fmt.Println("OnTestRepo create.")
-
-	ctx.OnStart(func(ctx gdit.Context) error {
-		fmt.Println("On TestRepo Start.")
-		return nil
-	})
-
-	ctx.OnStop(func(ctx gdit.Context) error {
-		fmt.Println("On TestRepo Stop.")
-		return nil
-	})
 
 	gdit.MustInject[*testConfig](ctx)
 	return &testRepo{}, nil
@@ -62,21 +42,11 @@ func (t *testService) Run() {
 
 }
 
-func NewTestServ(ctx gdit.Context) (TestService, error) {
+func NewTestServ(ctx gdit.InvokeCtx) (TestService, error) {
 	serv := &testService{}
 	fmt.Println("OnTestService Create")
 
-	ctx.OnStart(func(ctx gdit.Context) error {
-		fmt.Println("On TestServ Start.")
-		return nil
-	})
-
-	ctx.OnStop(func(ctx gdit.Context) error {
-		fmt.Println("On TestServ Stop.")
-		return nil
-	})
 	serv.repo = gdit.MustInject[*testRepo](ctx)
-
 	return serv, nil
 }
 
@@ -87,7 +57,7 @@ func TestProvide(t *testing.T) {
 		DomainUrl: "http://example.com",
 	}).Attach(app)
 
-	gdit.InvokeFunc(app, func(ctx gdit.Context) error {
+	gdit.InvokeFunc(app, func(ctx gdit.InvokeCtx) error {
 		// Test inject provide value
 		cfg := gdit.MustInject[*testConfig](ctx)
 		if cfg.DomainUrl != "http://example.com" {

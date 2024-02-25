@@ -3,9 +3,9 @@ package gdit
 import "github.com/saweima12/gdit/internal/utils"
 
 const (
-	lazy = iota
-	factory
-	value
+	provider_lazy = iota
+	provider_factory
+	provider_value
 )
 
 type ProviderBuilder[T any] interface {
@@ -51,27 +51,31 @@ func (b *providerBuilder[T]) WhenFunc(conditionFunc func() bool) ProviderBuilder
 }
 
 func (b *providerBuilder[T]) Attach(c Container) {
+	logger := c.getLogger()
 	if !b.shouldRegister() {
+		typeName := utils.GetType[T]()
+		logger.Debug("Provider of type %s not registered due to failing precondition checks.", typeName)
 		return
 	}
 	p := b.getProvider()
 	c.AddProvider(p.Key(), p, p.IsNamed())
+	logger.Debug("Provider registered successfully with key %s.", p.Key())
 }
 
 func (b *providerBuilder[T]) getProvider() provider[T] {
 	key, named := utils.GetProviderKey[T](b.name)
 	switch b.buildType {
-	case value:
+	case provider_value:
 		return &valueProvider[T]{
 			instance:     b.instance,
 			baseProvider: baseProvider{named: named, key: key},
 		}
-	case lazy:
+	case provider_lazy:
 		return &lazyProvider[T]{
 			factory:      b.factory,
 			baseProvider: baseProvider{named: named, key: key},
 		}
-	case factory:
+	case provider_factory:
 		return &factoryProvider[T]{
 			factory:      b.factory,
 			baseProvider: baseProvider{named: named, key: key},
