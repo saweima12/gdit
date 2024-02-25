@@ -20,7 +20,7 @@ go get github.com/saweima12/gdit
 
 ### Minial Example
 
-Use gdit.New() to create a basic container, and finally execute the registered start hooks with app.Startup(). This forms the most fundamental block.
+Use `gdit.New()` to create a basic container, and finally execute the registered start hooks with `app.Startup()`. This forms the most fundamental block.
 
 ```go
 package main
@@ -39,6 +39,19 @@ func main() {
 
 
 ### Basic Example
+
+#### Create provider & Invoke
+
+- Create a factory function that takes `InvokeCtx` as a parameter. (Refer to the example provided.)
+- Use `Provide[T]()`, `ProvideValue[T]()`, and `ProvideFactory[T]()` to create providers. Then use `Attach()` to add them to the container.
+- Use `Invoke()` and `InvokeFunc()` for immediate injection and execution (these will not be registered as dependencies), For quick operations, `InvokeProvide()` combines both actions, simplifying the syntax for ease of use.
+
+#### Injection 
+- Within the `InvokeFunction` (which has the `invokeCtx` parameter), use `Inject[T](ctx)`, `InjectNamed[T](ctx, name)`, `MustInject[T](ctx)`, and `MustInjectNamed[T](ctx, name)` to inject providers.
+
+#### Lifecycle 
+- Within the `InvokeFunction`, `InvokeCtx` provides two methods, `OnStart()` and `OnStop()`, to register lifecycle hooks.
+
 ```go
 package main
 
