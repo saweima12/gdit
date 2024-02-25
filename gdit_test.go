@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/saweima12/gdit"
 )
@@ -165,7 +166,34 @@ func TestProvide(t *testing.T) {
 	})
 }
 
-func TestOverwriteScope(t *testing.T) {
+func TestInvokeWithHook(t *testing.T) {
+	app := getTestApp()
+	fmt.Println("Start to test InvokeWithHook")
+
+	testCh := make(chan struct{})
+
+	gdit.InvokeFunc(app, func(ic gdit.InvokeCtx) error {
+		ic.OnStart(func(startCtx gdit.StartCtx) error {
+			testCh <- struct{}{}
+			return nil
+		})
+		return nil
+	})
+	go app.Startup()
+	ok := false
+	select {
+	case <-testCh:
+		ok = true
+	case <-time.After(time.Second * 2):
+		ok = false
+	}
+
+	if !ok {
+		t.Fail()
+	}
+
+	fmt.Println("Test InvokeWithHook end")
+
 }
 
 func getTestApp() gdit.App {
