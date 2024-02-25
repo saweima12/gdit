@@ -1,15 +1,19 @@
 # GDIT - Go Dependency Injection Toolkit
 
-A dependency injection toolkit based on Golang Generics.
+A dependency injection toolkit leveraging Golang Generics, GDIT provides a type-safe and flexible way to manage dependencies in Go applications. Designed to simplify dependency injection with minimal overhead, GDIT empowers developers to build scalable and maintainable Go applications.
 
-leveraging the new Generics feature to provide a type-safe and flexible way to manage dependencies in  Go applications. 
+## Features
 
+- **Developer-Centric Design**: Prioritizes seamless developer experience with intuitive APIs and tools for swift integration and business logic focus.
+- **Generic Support**: Utilizes Go's generics for type-safe dependency injection and resolution, enhancing code robustness without runtime type assertions.
+- **Emphasis on Flexibility**: Offers control over service lifecycle management and logging details, allowing customization to fit project-specific needs.
+- **Avoiding "Magic"**: Favors simplicity and transparency by steering clear of excessive use of reflection, making it easier to understand and maintain.
+- **Focused on Core Functionality**: Delivers essential DI container services, utilities, and lifecycle hooks, streamlining efficiency without unnecessary abstractions.
 
 ## Getting Started
 
-To get started with GDIT, ensure you have a Go version that supports Generics (Go 1.18 or later). Then, follow these simple steps:
+GDIT requires Go 1.18 or later. Start by installing GDIT in your project:
 
-### installation
 ```sh
 go get github.com/saweima12/gdit
 ```
