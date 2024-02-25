@@ -45,14 +45,14 @@ type App interface {
 }
 
 type app struct {
-	*scope
-	subScopes ext.GSyncMap[*scope]
+	*Scope
+	subScopes ext.GSyncMap[*Scope]
 	once      sync.Once
 }
 
 func createApp() *app {
 	return &app{
-		scope: &scope{
+		Scope: &Scope{
 			name:  "root",
 			state: STATE_UNINITIALIZED,
 			logger: &loggerWrapper{
@@ -107,7 +107,7 @@ func (ap *app) SetLogLevel(level LogLevel) App {
 }
 
 func (ap *app) GetScope(scopeName string) Container {
-	s := &scope{
+	s := &Scope{
 		parent: ap,
 		name:   scopeName,
 		state:  ap.state,
@@ -119,10 +119,6 @@ func (ap *app) GetScope(scopeName string) Container {
 	return s
 }
 
-func (ap *app) CurState() LifeState {
-	return ap.state
-}
-
 func (ap *app) start(ctx Context) error {
 	for i := range ap.startHooks {
 		if err := ap.startHooks[i](ctx); err != nil {
@@ -131,7 +127,7 @@ func (ap *app) start(ctx Context) error {
 	}
 
 	var err error
-	ap.subScopes.Range(func(key string, value *scope) bool {
+	ap.subScopes.Range(func(key string, value *Scope) bool {
 		if ferr := value.start(ctx); ferr != nil {
 			err = ferr
 			return false
@@ -150,7 +146,7 @@ func (ap *app) stop(ctx Context) error {
 		}
 	}
 
-	ap.subScopes.Range(func(key string, value *scope) bool {
+	ap.subScopes.Range(func(key string, value *Scope) bool {
 		if err := value.stop(ctx); err != nil {
 			ap.logger.Error("Execute scope stop hook failed, err:", err)
 			errOccurred = true

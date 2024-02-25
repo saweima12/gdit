@@ -78,10 +78,9 @@ func InvokeFunc(c Container, f func(Context) error) error {
 //
 // Returns a ProviderBuilder to further configure the provided service.
 func Provide[T any](f func(Context) (T, error)) ProviderBuilder[T] {
-	return &providerBuilder[T]{
-		buildType: lazy,
-		factory:   f,
-	}
+	pb := newProviderBuilder[T](lazy)
+	pb.factory = f
+	return pb
 }
 
 // ProvideFactory registers a factory-based service constructor within the DI system.
@@ -91,20 +90,18 @@ func Provide[T any](f func(Context) (T, error)) ProviderBuilder[T] {
 //
 // Returns a ProviderBuilder to further configure the provided service.
 func ProvideFactory[T any](f func(Context) (T, error)) ProviderBuilder[T] {
-	return &providerBuilder[T]{
-		buildType: factory,
-		factory:   f,
-	}
+	pb := newProviderBuilder[T](factory)
+	pb.factory = f
+	return pb
 }
 
 // ProvideValue registers a pre-instantiated service instance within the DI system.
 // [item] -> The pre-instantiated service instance of type T to be registered.
 // Returns a ProviderBuilder to further configure the provided service.
 func ProvideValue[T any](item T) ProviderBuilder[T] {
-	return &providerBuilder[T]{
-		buildType: value,
-		instance:  item,
-	}
+	pb := newProviderBuilder[T](value)
+	pb.instance = item
+	return pb
 }
 
 func injectInternal[T any](ctx Context, key string, isNamed bool) (T, error) {
@@ -116,8 +113,8 @@ func injectInternal[T any](ctx Context, key string, isNamed bool) (T, error) {
 	p, ok := item.(provider[T])
 	if !ok {
 		return utils.Empty[T](), fmt.Errorf("The item %s is not a valid provider.", key)
-	}
 
+	}
 	// Clone a independet context
 	indCtx := ctx.clone()
 	defer indCtx.recycle()
@@ -127,6 +124,10 @@ func injectInternal[T any](ctx Context, key string, isNamed bool) (T, error) {
 	}
 
 	// try to register hook.
-	indCtx.tryRegisterHook()
+	err = indCtx.tryAddOrRunHook()
+	if err != nil {
+		return utils.Empty[T](), fmt.Errorf("Execution of the startup hook for the %s failed. err: %v", key, err)
+	}
+
 	return instance, nil
 }

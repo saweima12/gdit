@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type scope struct {
+type Scope struct {
 	parent     Container
 	name       string
 	state      LifeState
@@ -17,7 +17,7 @@ type scope struct {
 	stopHooks  []HookFunc
 }
 
-func (sc *scope) AddProvider(k string, p any, isNamed bool) {
+func (sc *Scope) AddProvider(k string, p any, isNamed bool) {
 	if isNamed {
 		sc.storeProvider(k, p, isNamed, &sc.namedMap)
 	} else {
@@ -25,14 +25,14 @@ func (sc *scope) AddProvider(k string, p any, isNamed bool) {
 	}
 }
 
-func (sc *scope) storeProvider(k string, p any, isNamed bool, providerMap *sync.Map) {
+func (sc *Scope) storeProvider(k string, p any, isNamed bool, providerMap *sync.Map) {
 	if _, loaded := providerMap.Swap(k, p); loaded {
 		msg := fmt.Sprintf("[%s] -> The provider [%s] was overwritten.", sc.name, k)
 		sc.logger.Warn(msg)
 	}
 }
 
-func (sc *scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
+func (sc *Scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
 	if isNamed {
 		if val, ok := sc.namedMap.Load(k); ok {
 			return val, ok
@@ -42,10 +42,19 @@ func (sc *scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
 			return val, ok
 		}
 	}
-	return sc.parent.GetProvider(k, isNamed)
+
+	if sc.parent != nil {
+		return sc.parent.GetProvider(k, isNamed)
+	} else {
+		return nil, false
+	}
 }
 
-func (sc *scope) start(ctx Context) error {
+func (sc *Scope) CurState() LifeState {
+	return sc.state
+}
+
+func (sc *Scope) start(ctx Context) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
@@ -59,7 +68,7 @@ func (sc *scope) start(ctx Context) error {
 	return nil
 }
 
-func (sc *scope) stop(ctx Context) error {
+func (sc *Scope) stop(ctx Context) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
@@ -73,18 +82,18 @@ func (sc *scope) stop(ctx Context) error {
 	return nil
 }
 
-func (sc *scope) addStartHook(f HookFunc) {
+func (sc *Scope) addStartHook(f HookFunc) {
 	sc.mu.Lock()
 	sc.startHooks = append(sc.startHooks, f)
 	sc.mu.Unlock()
 }
 
-func (sc *scope) addStopHook(f HookFunc) {
+func (sc *Scope) addStopHook(f HookFunc) {
 	sc.mu.Lock()
 	sc.stopHooks = append(sc.stopHooks, f)
 	sc.mu.Unlock()
 }
 
-func (sc *scope) changeState(state LifeState) {
+func (sc *Scope) changeState(state LifeState) {
 	sc.state = state
 }

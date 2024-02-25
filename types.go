@@ -3,6 +3,7 @@ package gdit
 type Container interface {
 	AddProvider(k string, p any, isNamed bool)
 	GetProvider(k string, isNamed bool) (any, bool)
+	CurState() LifeState
 	addStartHook(f HookFunc)
 	addStopHook(f HookFunc)
 }

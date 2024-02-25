@@ -19,6 +19,13 @@ type ProviderBuilder[T any] interface {
 	Attach(c Container)
 }
 
+func newProviderBuilder[T any](bType uint8) *providerBuilder[T] {
+	return &providerBuilder[T]{
+		buildType: bType,
+		condition: true,
+	}
+}
+
 type providerBuilder[T any] struct {
 	buildType     uint8
 	condition     bool

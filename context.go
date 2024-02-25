@@ -48,7 +48,7 @@ type Context interface {
 	getProvider(key string, isNamed bool) (any, bool)
 	clone() Context
 	recycle()
-	tryRegisterHook()
+	tryAddOrRunHook() error
 }
 
 type context struct {
@@ -79,12 +79,17 @@ func (ctx *context) recycle() {
 	ctxPool.Put(ctx)
 }
 
-func (ctx *context) tryRegisterHook() {
+func (ctx *context) tryAddOrRunHook() error {
 	if ctx.startHook != nil {
-		ctx.container.addStartHook(ctx.startHook)
+		if ctx.container.CurState() == STATE_READY {
+			ctx.startHook(ctx)
+		} else {
+			ctx.container.addStartHook(ctx.startHook)
+		}
 	}
 
 	if ctx.stopHook != nil {
 		ctx.container.addStopHook(ctx.stopHook)
 	}
+	return nil
 }
