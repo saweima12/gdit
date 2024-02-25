@@ -59,7 +59,12 @@ func MustInjectNamed[T any](ctx Context, name string) T {
 // Returns the service instance and any error encountered during execution.
 func Invoke[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
 	ctx := getContext(c)
-	return f(ctx)
+	resp, err := f(ctx)
+	if err != nil {
+		return resp, err
+	}
+	ctx.tryAddOrRunHook()
+	return resp, nil
 }
 
 // InvokeProvide combines service initialization with automatic registration in the container.
@@ -67,12 +72,10 @@ func Invoke[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
 // [f] -> Constructor function that accepts a Context and returns a service instance (of type T) and an error.
 // Returns the service instance and any error encountered during execution.
 func InvokeProvide[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
-	ctx := getContext(c)
-	instance, err := f(ctx)
+	instance, err := Invoke[T](c, f)
 	if err != nil {
 		return instance, err
 	}
-
 	ProvideValue[T](instance).Attach(c)
 	return instance, nil
 }
@@ -83,7 +86,11 @@ func InvokeProvide[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) 
 // Returns an error if the initialization task fails.
 func InvokeFunc(c Container, f func(InvokeCtx) error) error {
 	ctx := getContext(c)
-	return f(ctx)
+	if err := f(ctx); err != nil {
+		return err
+	}
+	ctx.tryAddOrRunHook()
+	return nil
 }
 
 // Provide registers a lazy-loaded service constructor within the DI system.
