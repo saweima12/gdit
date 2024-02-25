@@ -57,9 +57,24 @@ func MustInjectNamed[T any](ctx Context, name string) T {
 // [c] -> Container where the function is executed, managing service lifecycles and dependencies.
 // [f] -> Constructor function that accepts a Context and returns a service instance (of type T) and an error.
 // Returns the service instance and any error encountered during execution.
-func Invoke[T any](c Container, f func(Context) (T, error)) (T, error) {
+func Invoke[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
 	ctx := getContext(c)
 	return f(ctx)
+}
+
+// InvokeProvide combines service initialization with automatic registration in the container.
+// [c] -> Container where the function is executed, managing service lifecycles and dependencies.
+// [f] -> Constructor function that accepts a Context and returns a service instance (of type T) and an error.
+// Returns the service instance and any error encountered during execution.
+func InvokeProvide[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
+	ctx := getContext(c)
+	instance, err := f(ctx)
+	if err != nil {
+		return instance, err
+	}
+
+	ProvideValue[T](instance).Attach(c)
+	return instance, nil
 }
 
 // InvokeFunc executes a function within the container's context, for initialization tasks.

@@ -1,6 +1,7 @@
 package gdit_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -25,6 +26,15 @@ type testRepo struct {
 
 func NewTestRepo(ctx gdit.InvokeCtx) (*testRepo, error) {
 	fmt.Println("OnTestRepo create.")
+
+	ctx.OnStart(func(startCtx gdit.StartCtx) error {
+		fmt.Println("OnRepoStart")
+		return nil
+	})
+
+	ctx.OnStop(func(stopCtx gdit.StopCtx) error {
+		return nil
+	})
 
 	gdit.MustInject[*testConfig](ctx)
 	return &testRepo{}, nil
@@ -53,36 +63,103 @@ func NewTestServ(ctx gdit.InvokeCtx) (TestService, error) {
 func TestProvide(t *testing.T) {
 	app := getTestApp()
 
-	gdit.ProvideValue[*testConfig](&testConfig{
-		DomainUrl: "http://example.com",
-	}).Attach(app)
-
 	gdit.InvokeFunc(app, func(ctx gdit.InvokeCtx) error {
-		// Test inject provide value
-		cfg := gdit.MustInject[*testConfig](ctx)
-		if cfg.DomainUrl != "http://example.com" {
-			t.Fail()
-		}
 
-		// Test inject named lazy provider with interface.
-		serv := gdit.MustInjectNamed[TestService](ctx, "TestService")
-		serv2 := gdit.MustInjectNamed[TestService](ctx, "TestService")
+		// Test inject provide value
+		t.Run("cfg should have value", func(t *testing.T) {
+			cfg := gdit.MustInject[*testConfig](ctx)
+			if cfg.DomainUrl != "http://example.com" {
+				t.Fail()
+			}
+		})
+
+		t.Run("TestService not registed to a type, that will trigger panic", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println(r)
+				}
+			}()
+			serv := gdit.MustInject[TestService](ctx)
+			if serv != nil {
+				t.Fail()
+			}
+		})
+
+		t.Run("TestServicess not exists, that will trigger panic", func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Println(r)
+				}
+			}()
+			serv := gdit.MustInjectNamed[TestService](ctx, "TestServicess")
+			if serv != nil {
+				t.Fail()
+			}
+		})
+
+		t.Run("TestServ use type should be nil", func(ct *testing.T) {
+			serv, err := gdit.Inject[TestService](ctx)
+			if err == nil || serv != nil {
+				t.Fail()
+			}
+		})
+
+		t.Run("TestServ use name should have instance", func(ct *testing.T) {
+			serv, err := gdit.InjectNamed[TestService](ctx, "TestService")
+			if err != nil || serv == nil {
+				t.Fail()
+			}
+		})
+
 		t.Run("The serv and serv2 should be equals", func(ct *testing.T) {
+			// Test inject named lazy provider with interface.
+			serv := gdit.MustInjectNamed[TestService](ctx, "TestService")
+			serv2 := gdit.MustInjectNamed[TestService](ctx, "TestService")
 			if serv != serv2 {
 				ct.Fail()
 			}
 		})
 
+		app.Startup()
+
 		// test factory provider.
-		repo1 := gdit.MustInject[*testRepo](ctx)
-		repo2 := gdit.MustInject[*testRepo](ctx)
 		t.Run("The repositories repo1 and repo2 should be distinct.", func(ct *testing.T) {
+			repo1 := gdit.MustInject[*testRepo](ctx)
+			repo2 := gdit.MustInject[*testRepo](ctx)
 			if &repo1 == &repo2 {
 				ct.Fail()
 			}
 		})
 
-		app.Startup()
+		t.Run("Invoke should be success", func(t *testing.T) {
+			repo, err := gdit.Invoke[*testRepo](app, func(ic gdit.InvokeCtx) (*testRepo, error) {
+				return &testRepo{}, nil
+			})
+			if repo == nil || err != nil {
+				t.Fail()
+			}
+		})
+
+		t.Run("InvokeProvide should be success", func(t *testing.T) {
+			repo, err := gdit.InvokeProvide[*testRepo](app, func(ic gdit.InvokeCtx) (*testRepo, error) {
+				return &testRepo{}, nil
+			})
+
+			if repo == nil || err != nil {
+				t.Fail()
+			}
+		})
+
+		t.Run("InvokeProvide return a error should be failed", func(t *testing.T) {
+			repo, err := gdit.InvokeProvide[*testRepo](app, func(ic gdit.InvokeCtx) (*testRepo, error) {
+				return nil, errors.New("failed")
+			})
+
+			if repo != nil || err == nil {
+				t.Fail()
+			}
+		})
+
 		app.Teardown()
 		return nil
 	})
@@ -92,7 +169,11 @@ func TestOverwriteScope(t *testing.T) {
 }
 
 func getTestApp() gdit.App {
-	app := gdit.New()
+	app := gdit.New().SetLogLevel(gdit.LOG_DEBUG)
+
+	gdit.ProvideValue[*testConfig](&testConfig{
+		DomainUrl: "http://example.com",
+	}).Attach(app)
 
 	gdit.ProvideFactory[*testRepo](NewTestRepo).
 		Attach(app)

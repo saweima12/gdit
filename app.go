@@ -2,12 +2,30 @@ package gdit
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/saweima12/gdit/internal/ext"
 )
 
-type LifeState uint8
+type LifeState uint32
+
+func (ls LifeState) String() string {
+	switch ls {
+	case STATE_UNINITIALIZED:
+		return "UNINITIALIZED"
+	case STATE_INITIALIZING:
+		return "INITIALIZING"
+	case STATE_READY:
+		return "READY"
+	case STATE_SHUTTING_DOWN:
+		return "SHUTTING_DOWN"
+	case STATE_TERMINATED:
+		return "TERMINATED"
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", int(ls))
+	}
+}
 
 const (
 	STATE_UNINITIALIZED LifeState = iota
@@ -53,9 +71,9 @@ type app struct {
 func createApp() *app {
 	return &app{
 		Scope: &Scope{
-			name:  "root",
-			state: STATE_UNINITIALIZED,
-			logger: &loggerWrapper{
+			Name:  "root",
+			State: STATE_UNINITIALIZED,
+			Logger: &loggerWrapper{
 				Level:  LOG_INFO,
 				Logger: newStandardLogger(),
 			},
@@ -66,7 +84,7 @@ func createApp() *app {
 func (ap *app) Startup() error {
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
-	if ap.state != STATE_UNINITIALIZED {
+	if ap.State != STATE_UNINITIALIZED {
 		return errors.New("The app has been launched.")
 	}
 
@@ -84,42 +102,46 @@ func (ap *app) Teardown() error {
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
 
-	if ap.state != STATE_READY && ap.state != STATE_INITIALIZING {
+	if ap.State != STATE_READY && ap.State != STATE_INITIALIZING {
 		return errors.New("The app has not been launched yet.")
 	}
 
+	ap.Logger.Debug("The app is starting teardown.")
 	// Create a context and execute all stop hooks.
 	ctx := getContext(ap)
 	if err := ap.stop(ctx); err != nil {
 		return err
 	}
+	ap.Logger.Debug("The app has been terminated")
 	return nil
 }
 
 func (ap *app) SetLogger(l Logger) App {
-	ap.logger.Logger = l
+	ap.Logger.Logger = l
 	return ap
 }
 
 func (ap *app) SetLogLevel(level LogLevel) App {
-	ap.logger.Level = level
+	ap.Logger.Level = level
 	return ap
 }
 
 func (ap *app) GetScope(scopeName string) Container {
 	s := &Scope{
 		parent: ap,
-		name:   scopeName,
-		state:  ap.state,
-		logger: ap.logger,
+		Name:   scopeName,
+		State:  ap.State,
+		Logger: ap.Logger,
 	}
 	if _, loaded := ap.subScopes.Swap(scopeName, s); loaded {
-		ap.logger.Warn("The scope [%s] is overwritten", scopeName)
+		ap.Logger.Warn("The scope [%s] is overwritten", scopeName)
 	}
 	return s
 }
 
 func (ap *app) start(ctx *context) error {
+	ap.Logger.Debug("The app is starting initialization.")
+
 	for i := range ap.startHooks {
 		if err := ap.startHooks[i](ctx); err != nil {
 			return err
@@ -134,6 +156,8 @@ func (ap *app) start(ctx *context) error {
 		}
 		return true
 	})
+
+	ap.Logger.Debug("The app is ready.")
 	return err
 }
 
@@ -141,14 +165,14 @@ func (ap *app) stop(ctx Context) error {
 	errOccurred := false
 	for i := len(ap.stopHooks) - 1; i >= 0; i-- {
 		if err := ap.stopHooks[i](ctx); err != nil {
-			ap.logger.Error("Execute stop hook failed, err:", err)
+			ap.Logger.Error("Execute stop hook failed, err:", err)
 			errOccurred = true
 		}
 	}
 
 	ap.subScopes.Range(func(key string, value *Scope) bool {
 		if err := value.stop(ctx); err != nil {
-			ap.logger.Error("Execute scope stop hook failed, err:", err)
+			ap.Logger.Error("Execute scope stop hook failed, err:", err)
 			errOccurred = true
 		}
 		return true
@@ -159,8 +183,4 @@ func (ap *app) stop(ctx Context) error {
 	}
 
 	return nil
-}
-
-func (ap *app) changeState(state LifeState) {
-	ap.state = state
 }

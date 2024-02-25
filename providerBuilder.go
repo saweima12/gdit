@@ -59,7 +59,6 @@ func (b *providerBuilder[T]) Attach(c Container) {
 	}
 	p := b.getProvider()
 	c.AddProvider(p.Key(), p, p.IsNamed())
-	logger.Debug("Provider registered successfully with key %s.", p.Key())
 }
 
 func (b *providerBuilder[T]) getProvider() provider[T] {

@@ -3,46 +3,49 @@ package gdit
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 type Scope struct {
 	parent     Container
-	name       string
-	state      LifeState
-	logger     *loggerWrapper
+	Name       string
+	State      LifeState
+	Logger     *loggerWrapper
 	mu         sync.RWMutex
-	typeMap    sync.Map
-	namedMap   sync.Map
+	TypeMap    sync.Map
+	NamedMap   sync.Map
 	startHooks []StartFunc
 	stopHooks  []StopFunc
 }
 
 func (sc *Scope) getLogger() Logger {
-	return sc.logger
+	return sc.Logger
 }
 
 func (sc *Scope) AddProvider(k string, p any, isNamed bool) {
 	if isNamed {
-		sc.storeProvider(k, p, isNamed, &sc.namedMap)
+		sc.storeProvider(k, p, isNamed, &sc.NamedMap)
+		sc.Logger.Debug("[%s] -> The provider [%s] is registered by name", sc.Name, k)
 	} else {
-		sc.storeProvider(k, p, isNamed, &sc.typeMap)
+		sc.storeProvider(k, p, isNamed, &sc.TypeMap)
+		sc.Logger.Debug("[%s] -> The provider [%s] is registered by type", sc.Name, k)
 	}
 }
 
 func (sc *Scope) storeProvider(k string, p any, isNamed bool, providerMap *sync.Map) {
 	if _, loaded := providerMap.Swap(k, p); loaded {
-		msg := fmt.Sprintf("[%s] -> The provider [%s] was overwritten.", sc.name, k)
-		sc.logger.Warn(msg)
+		msg := fmt.Sprintf("[%s] -> The provider [%s] was overwritten.", sc.Name, k)
+		sc.Logger.Warn(msg)
 	}
 }
 
 func (sc *Scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
 	if isNamed {
-		if val, ok := sc.namedMap.Load(k); ok {
+		if val, ok := sc.NamedMap.Load(k); ok {
 			return val, ok
 		}
 	} else {
-		if val, ok := sc.typeMap.Load(k); ok {
+		if val, ok := sc.TypeMap.Load(k); ok {
 			return val, ok
 		}
 	}
@@ -55,19 +58,21 @@ func (sc *Scope) GetProvider(k string, isNamed bool) (val any, ok bool) {
 }
 
 func (sc *Scope) CurState() LifeState {
-	return sc.state
+	return sc.State
 }
 
 func (sc *Scope) start(ctx StartCtx) error {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 
+	sc.Logger.Debug("The scope [%s] is starting initialization.", sc.Name)
 	sc.changeState(STATE_INITIALIZING)
 	for i := range sc.startHooks {
 		if err := sc.startHooks[i](ctx); err != nil {
 			return err
 		}
 	}
+	sc.Logger.Debug("The scope [%s] is ready.", sc.Name)
 	sc.changeState(STATE_READY)
 	return nil
 }
@@ -98,6 +103,7 @@ func (sc *Scope) addStopHook(f StopFunc) {
 	sc.mu.Unlock()
 }
 
-func (sc *Scope) changeState(state LifeState) {
-	sc.state = state
+func (sc *Scope) changeState(newState LifeState) {
+	preState := atomic.SwapUint32((*uint32)(&sc.State), uint32(newState))
+	sc.Logger.Debug("ChangeState %v to %v", LifeState(preState), newState)
 }
