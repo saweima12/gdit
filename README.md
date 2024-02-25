@@ -18,6 +18,26 @@ GDIT requires Go 1.18 or later. Start by installing GDIT in your project:
 go get github.com/saweima12/gdit
 ```
 
+### Minial Example
+
+Use gdit.New() to create a basic container, and finally execute the registered start hooks with app.Startup(). This forms the most fundamental block.
+
+```go
+package main
+
+import (
+	"github.com/saweima12/gdit"
+)
+
+func main() {
+	app := gdit.New()
+
+	// Startup will trigger all registered start hooks.
+	app.Startup()
+}
+```
+
+
 ### Basic Example
 ```go
 package main
