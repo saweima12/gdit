@@ -21,7 +21,8 @@ go get github.com/saweima12/gdit
 ### Minial Example
 
 - Use `gdit.New()` to create a container.
-- Provide dependencies with `gdit.Provide[T]()` and initialize them with dependency injection using `gdit.Invoke[T]()`.
+- Provide dependencies with `gdit.Provide[T]()` 
+- Initialize function with dependency injection using `gdit.Invoke[T]()`.
 - Call `app.Startup()` to execute the Start hooks registered during the dependency injection process.
 - Upon completion, call `app.Teardown()` to execute all registered Stop hooks.
 
@@ -127,7 +128,7 @@ func main() {
 }
 ```
 
-### Injection 
+#### Injection 
 - Within the `InvokeFunction` (which has the `invokeCtx` parameter), use `Inject[T](ctx)`, `InjectNamed[T](ctx, name)`, `MustInject[T](ctx)`, and `MustInjectNamed[T](ctx, name)` to inject providers.
 
 ```go
