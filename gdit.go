@@ -59,11 +59,15 @@ func MustInjectNamed[T any](ctx Context, name string) T {
 // Returns the service instance and any error encountered during execution.
 func Invoke[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) {
 	ctx := getContext(c)
+	defer ctx.recycle()
+
 	resp, err := f(ctx)
 	if err != nil {
 		return resp, err
 	}
-	ctx.tryAddOrRunHook()
+	if err := ctx.tryAddOrRunHook(); err != nil {
+		return resp, err
+	}
 	return resp, nil
 }
 
@@ -86,10 +90,13 @@ func InvokeProvide[T any](c Container, f func(InvokeCtx) (T, error)) (T, error) 
 // Returns an error if the initialization task fails.
 func InvokeFunc(c Container, f func(InvokeCtx) error) error {
 	ctx := getContext(c)
+	defer ctx.recycle()
 	if err := f(ctx); err != nil {
 		return err
 	}
-	ctx.tryAddOrRunHook()
+	if err := ctx.tryAddOrRunHook(); err != nil {
+		return err
+	}
 	return nil
 }
 

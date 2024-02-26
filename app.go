@@ -90,6 +90,7 @@ func (ap *app) Startup() error {
 
 	// Create a context and execute all start hooks.
 	ctx := getContext(ap)
+	defer ctx.recycle()
 	ap.changeState(STATE_INITIALIZING)
 	if err := ap.start(ctx); err != nil {
 		return err
@@ -109,6 +110,7 @@ func (ap *app) Teardown() error {
 	ap.Logger.Debug("The app is starting teardown.")
 	// Create a context and execute all stop hooks.
 	ctx := getContext(ap)
+	defer ctx.recycle()
 	if err := ap.stop(ctx); err != nil {
 		return err
 	}

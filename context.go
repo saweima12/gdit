@@ -1,6 +1,8 @@
 package gdit
 
-import "sync"
+import (
+	"sync"
+)
 
 type contextPool struct {
 	pool sync.Pool
@@ -98,7 +100,7 @@ func (ctx *context) recycle() {
 func (ctx *context) tryAddOrRunHook() error {
 	if ctx.startHook != nil {
 		if ctx.container.CurState() == STATE_READY {
-			ctx.startHook(ctx)
+			return ctx.startHook(ctx)
 		} else {
 			ctx.container.addStartHook(ctx.startHook)
 		}
